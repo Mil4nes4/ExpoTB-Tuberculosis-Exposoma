@@ -24,7 +24,19 @@ WB_INDICATORS = {
     "hiv": "SH.DYN.AIDS.ZS",              # prevalencia de VIH (% de 15-49 años)
     "undernourishment": "SN.ITK.DEFC.ZS", # prevalencia de desnutrición (%)
 }
-FEATURES = list(WB_INDICATORS)
+FEATURES = list(WB_INDICATORS)             # conjunto "base" (los 6 indicadores originales)
+
+# Variables adicionales para el conjunto "ampliado" (se comparan en expotb.compare)
+WB_INDICATORS_EXTRA = {
+    "alcohol": "SH.ALC.PCAP.LI",          # consumo de alcohol per cápita (litros de alcohol puro)
+    "sanitation": "SH.STA.BASS.ZS",       # población con servicios básicos de saneamiento (%)
+    "health_exp": "SH.XPD.CHEX.GD.ZS",    # gasto corriente en salud (% del PIB)
+}
+OWID_EXTRA = {                            # series de Our World in Data (CSV)
+    "bcg": "https://ourworldindata.org/grapher/bcg-immunization-coverage-for-tb-among-1-year-olds.csv",
+}
+EXTRA_FEATURES = list(WB_INDICATORS_EXTRA) + list(OWID_EXTRA)
+FEATURE_SETS = {"base": FEATURES, "ampliado": FEATURES + EXTRA_FEATURES}
 
 FEATURE_LABELS = {
     "pm25": "PM2.5 (µg/m³)",
@@ -33,6 +45,10 @@ FEATURE_LABELS = {
     "gdp_pc": "PIB per cápita (US$)",
     "hiv": "Prevalencia de VIH (%)",
     "undernourishment": "Prevalencia de desnutrición (%)",
+    "alcohol": "Consumo de alcohol (L/persona)",
+    "sanitation": "Saneamiento básico (%)",
+    "health_exp": "Gasto en salud (% del PIB)",
+    "bcg": "Cobertura BCG (%)",
 }
 
 DIMENSIONS = {
@@ -41,6 +57,15 @@ DIMENSIONS = {
     "Social": ["urban_pop", "gdp_pc"],
     "Biológica": ["hiv", "undernourishment"],
 }
+
+# Dimensiones del conjunto ampliado (solo para el análisis comparativo)
+DIMENSIONS_AMPLIADO = {
+    "Externa": ["pm25"],
+    "Hogar": ["clean_fuel", "sanitation"],
+    "Social": ["urban_pop", "gdp_pc", "health_exp"],
+    "Biológica": ["hiv", "undernourishment", "alcohol", "bcg"],
+}
+COMPARISON_PATH = MODELS_DIR / "comparacion.json"
 
 # Rangos para los controles de la interfaz (mín, máx, valor por defecto)
 FEATURE_RANGES = {

@@ -22,10 +22,10 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     return df[df[config.FEATURES].isna().sum(axis=1) <= 2].reset_index(drop=True)
 
 
-def _pipe(regressor) -> Pipeline:
+def _pipe(regressor, add_indicator: bool = False) -> Pipeline:
     # imputación y escalado dentro del pipeline: se ajustan solo con datos de entrenamiento (sin fuga)
     return Pipeline([
-        ("imputer", SimpleImputer(strategy="median")),
+        ("imputer", SimpleImputer(strategy="median", add_indicator=add_indicator)),
         ("scaler", StandardScaler()),
         ("model", regressor),
     ])
@@ -37,7 +37,7 @@ def _log_target(estimator) -> TransformedTargetRegressor:
                                       inverse_func=np.expm1, check_inverse=False)
 
 
-def build_models() -> dict:
+def build_models(add_indicator: bool = False) -> dict:
     base = {
         "ridge": Ridge(),
         "arbol_decision": DecisionTreeRegressor(random_state=RS),
@@ -46,12 +46,12 @@ def build_models() -> dict:
         "gradient_boosting": GradientBoostingRegressor(random_state=RS),
         "svr": SVR(),
     }
-    models = {name: _log_target(_pipe(reg)) for name, reg in base.items()}
+    models = {name: _log_target(_pipe(reg, add_indicator)) for name, reg in base.items()}
     # el ensamble promedia en escala logarítmica las predicciones de RF, XGBoost y SVR
     voting = VotingRegressor([
-        ("rf", _pipe(RandomForestRegressor(random_state=RS, n_jobs=-1))),
-        ("xgb", _pipe(XGBRegressor(random_state=RS, n_jobs=-1))),
-        ("svr", _pipe(SVR())),
+        ("rf", _pipe(RandomForestRegressor(random_state=RS, n_jobs=-1), add_indicator)),
+        ("xgb", _pipe(XGBRegressor(random_state=RS, n_jobs=-1), add_indicator)),
+        ("svr", _pipe(SVR(), add_indicator)),
     ])
     models["ensamble"] = _log_target(voting)
     return models

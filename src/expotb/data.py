@@ -27,18 +27,31 @@ def load_world_bank() -> pd.DataFrame:
     """Descarga los 6 indicadores con wbgapi (solo países, sin agregados)."""
     import wbgapi as wb
 
-    codes = list(config.WB_INDICATORS.values())
+    indicators = {**config.WB_INDICATORS, **config.WB_INDICATORS_EXTRA}
+    codes = list(indicators.values())
     df = wb.data.DataFrame(codes, economy="all", time=range(config.YEAR_START, config.YEAR_END + 1),
                            skipAggs=True, columns="series").reset_index()
     df = df.rename(columns={"economy": "iso3", "time": "year"})
     df["year"] = df["year"].astype(str).str.replace("YR", "").astype(int)
-    return df.rename(columns={v: k for k, v in config.WB_INDICATORS.items()})
+    return df.rename(columns={v: k for k, v in indicators.items()})
+
+
+def load_owid_extra() -> pd.DataFrame:
+    """Series adicionales de OWID (p. ej. BCG), unidas por iso3 y año."""
+    out = None
+    for name, url in config.OWID_EXTRA.items():
+        df = pd.read_csv(url, storage_options={"User-Agent": "ExpoTB"})
+        value_col = [c for c in df.columns if c not in ("Entity", "Code", "Year")][-1]
+        df = df.rename(columns={"Code": "iso3", "Year": "year", value_col: name})[["iso3", "year", name]]
+        out = df if out is None else out.merge(df, on=["iso3", "year"], how="outer")
+    return out
 
 
 def build_dataset(tb_path: str | None = None) -> pd.DataFrame:
     tb = load_tb_incidence(tb_path)
     wb_df = load_world_bank()
     df = tb.merge(wb_df, on=["iso3", "year"], how="inner")
+    df = df.merge(load_owid_extra(), on=["iso3", "year"], how="left")
     df = df[df["year"].between(config.YEAR_START, config.YEAR_END)]
     return df.sort_values(["iso3", "year"]).reset_index(drop=True)
 

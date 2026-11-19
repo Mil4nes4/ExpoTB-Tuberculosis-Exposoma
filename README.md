@@ -55,6 +55,7 @@ expotb/
 │   ├── data.py               # adquisición e integración de datos
 │   ├── pipeline.py           # preprocesamiento y modelos
 │   ├── train.py              # validación cruzada, prueba y prueba temporal
+│   ├── compare.py            # comparación de conjuntos de variables (base vs. ampliado)
 │   └── explain.py            # valores SHAP
 ├── data/                     # raw/ y processed/ (no se suben a git)
 ├── models/                   # modelos .joblib y métricas (no se suben a git)
@@ -82,6 +83,9 @@ python -m expotb.data --tb data/raw/tuberculosis.csv
 
 # 2. Entrenar y evaluar los modelos
 python -m expotb.train
+
+# 2b. (Opcional) Comparar el conjunto base de 6 indicadores con el ampliado de 10
+python -m expotb.compare
 
 # 3. Levantar la API (documentación en http://localhost:8000/docs)
 uvicorn api.main:app --reload
@@ -123,6 +127,7 @@ curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" \
 - Modelos de caja blanca: Ridge y Árbol de Decisión. Modelos de caja negra: Random Forest, XGBoost, Gradient Boosting y SVR. Ensamble por votación de RF, XGBoost y SVR.
 - Evaluación: validación cruzada K=5 sobre el 80 %, prueba sobre el 20 % y prueba temporal (entrenamiento 2000-2015, prueba 2016-2019). Métricas: MAE, RMSE y R².
 - Explicabilidad: SHAP (TreeExplainer) por indicador y por dimensión del exposoma.
+- Comparación de conjuntos de variables (`expotb.compare`): el conjunto ampliado añade consumo de alcohol, saneamiento básico, gasto en salud y cobertura BCG. Se evalúa con los mismos registros y modelos bajo tres particiones: aleatoria, por país y temporal.
 - Reproducibilidad: `random_state = 42`.
 
 ## Futuras implementaciones
