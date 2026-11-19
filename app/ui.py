@@ -32,7 +32,7 @@ CSS = """
   padding-block: clamp(3.5rem, 6vw, 4.25rem) 3rem;
   padding-inline: clamp(1rem, 4vw, 3rem);
   max-width: 84rem;
-  animation: xfade .4s ease both;
+  animation: xfade .4s ease backwards;
 }
 
 /* tipografía: texto en Atkinson Hyperlegible y títulos en Newsreader (los íconos conservan su fuente) */

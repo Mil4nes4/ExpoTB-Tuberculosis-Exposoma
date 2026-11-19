@@ -1,12 +1,9 @@
 import streamlit as st
 
 from api_client import api_ok, get_metrics
-from chatbot import render_chat
 from expotb import config
 from ui import card_grid, dim_card, hero_banner, kpi_row, note
 from ui import quick_guide
-
-render_chat()
 
 hero_banner(
     eyebrow="Exposoma y tuberculosis",

@@ -2,6 +2,7 @@
 import streamlit as st
 
 from api_client import API_URL, api_ok
+from chatbot import render_chat
 from ui import inject_css
 
 st.set_page_config(page_title="ExpoTB", page_icon=":material/pulmonology:", layout="wide",
@@ -35,5 +36,8 @@ with st.sidebar:
         st.error(f"API no disponible en {API_URL}", icon=":material/error:")
     st.caption("Prototipo académico del curso de Inteligencia Artificial, FISI-UNMSM. "
                "No es una herramienta clínica.")
+
+# asistente disponible en todas las páginas (botón flotante en una esquina)
+render_chat()
 
 nav.run()
