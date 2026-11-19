@@ -12,6 +12,7 @@ data/processed/*
 models/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+!data/processed/expotb.csv
 !models/.gitkeep
 
 # Notebooks y editores
