@@ -17,7 +17,8 @@ class Explainer:
         self.tree_explainer = shap.TreeExplainer(pipe[-1])
 
     def shap_values(self, X: pd.DataFrame) -> np.ndarray:
-        return self.tree_explainer.shap_values(self.preprocess.transform(X[config.FEATURES]))
+        cols = config.FEATURES + ([config.INCOME_COL] if config.INCOME_COL in X.columns else [])
+        return self.tree_explainer.shap_values(self.preprocess.transform(X[cols]))
 
     @property
     def base_value(self) -> float:

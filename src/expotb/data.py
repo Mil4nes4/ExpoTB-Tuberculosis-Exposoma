@@ -47,11 +47,20 @@ def load_owid_extra() -> pd.DataFrame:
     return out
 
 
+def load_income() -> pd.DataFrame:
+    """Grupo de ingreso del Banco Mundial por país (LIC, LMC, UMC, HIC)."""
+    import wbgapi as wb
+
+    eco = wb.economy.DataFrame(skipAggs=True).reset_index()
+    return eco.rename(columns={"id": "iso3", "incomeLevel": config.INCOME_COL})[["iso3", config.INCOME_COL]]
+
+
 def build_dataset(tb_path: str | None = None) -> pd.DataFrame:
     tb = load_tb_incidence(tb_path)
     wb_df = load_world_bank()
     df = tb.merge(wb_df, on=["iso3", "year"], how="inner")
     df = df.merge(load_owid_extra(), on=["iso3", "year"], how="left")
+    df = df.merge(load_income(), on="iso3", how="left")
     df = df[df["year"].between(config.YEAR_START, config.YEAR_END)]
     return df.sort_values(["iso3", "year"]).reset_index(drop=True)
 

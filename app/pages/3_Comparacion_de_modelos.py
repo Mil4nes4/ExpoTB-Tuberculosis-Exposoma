@@ -11,7 +11,8 @@ require_api()
 
 m = get_metrics()
 st.caption(f"{m['n_registros']} registros país-año de {m['n_paises']} países. "
-           "Validación cruzada K=5 sobre el 80 %, prueba sobre el 20 % y prueba temporal (2000-2015 → 2016-2019).")
+           "Validación cruzada K=5 sobre el 80 %, prueba sobre el 20 %, prueba por país (países completos "
+           "separados entre entrenamiento y prueba) y prueba temporal (2000-2015 → 2016-2019).")
 
 rows = []
 for name, r in m["modelos"].items():
@@ -20,6 +21,8 @@ for name, r in m["modelos"].items():
         "MAE CV": r["cv"]["mae"]["media"], "RMSE CV": r["cv"]["rmse"]["media"],
         "R² CV": r["cv"]["r2"]["media"], "R² CV (std)": r["cv"]["r2"]["std"],
         "MAE prueba": r["prueba"]["mae"], "RMSE prueba": r["prueba"]["rmse"], "R² prueba": r["prueba"]["r2"],
+        "MAE por país": r["por_pais"]["prueba"]["mae"], "RMSE por país": r["por_pais"]["prueba"]["rmse"],
+        "R² por país": r["por_pais"]["prueba"]["r2"],
         "MAE temporal": r["temporal"]["mae"], "RMSE temporal": r["temporal"]["rmse"],
         "R² temporal": r["temporal"]["r2"],
     })
@@ -32,7 +35,7 @@ c2.metric("R² prueba", f"{best['R² prueba']:.3f}")
 c3.metric("RMSE prueba", f"{best['RMSE prueba']:.1f}")
 
 metric = st.radio("Métrica", ["R²", "MAE", "RMSE"], horizontal=True)
-long = table.melt(id_vars=["Modelo"], value_vars=[f"{metric} CV", f"{metric} prueba", f"{metric} temporal"],
+long = table.melt(id_vars=["Modelo"], value_vars=[f"{metric} CV", f"{metric} prueba", f"{metric} por país", f"{metric} temporal"],
                   var_name="Evaluación", value_name=metric)
 fig = px.bar(long, x="Modelo", y=metric, color="Evaluación", barmode="group")
 st.plotly_chart(fig, width="stretch")

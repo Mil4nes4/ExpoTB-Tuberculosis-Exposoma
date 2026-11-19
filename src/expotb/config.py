@@ -14,6 +14,7 @@ RANDOM_STATE = 42
 YEAR_START, YEAR_END = 2000, 2019          # se excluye 2020-2022 por la distorsión de la COVID-19
 TEMPORAL_SPLIT_YEAR = 2015                # prueba temporal: entrena <=2015, prueba 2016-2019
 TARGET = "incidence"                      # casos nuevos por 100 000 habitantes
+INCOME_COL = "income"                     # grupo de ingreso del Banco Mundial (LIC, LMC, UMC, HIC), usado para imputar
 
 # Indicadores del Banco Mundial (World Development Indicators)
 WB_INDICATORS = {

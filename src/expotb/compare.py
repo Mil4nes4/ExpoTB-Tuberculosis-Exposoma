@@ -1,18 +1,14 @@
-"""Comparación de conjuntos de variables: base (6) vs. ampliado (10).
+"""Comparación de conjuntos de variables y de estrategias de imputación.
 
 Todas las variantes usan exactamente los mismos registros (se limpia con los 6 indicadores base),
-los mismos modelos, los mismos hiperparámetros por defecto y las mismas particiones, de modo que
-la única diferencia es el conjunto de variables.
+los mismos modelos, los mismos hiperparámetros por defecto y las mismas particiones.
 
 Variantes:
-  base          los 6 indicadores originales
-  ampliado      base + alcohol, saneamiento, gasto en salud y BCG
-  ampliado_ind  ampliado + indicadores de faltante en el imputador
+  base          6 indicadores, imputación por grupo de ingreso (configuración del informe)
+  base_mediana  6 indicadores, imputación con la mediana global
+  ampliado      base + alcohol, saneamiento, gasto en salud y BCG, imputación por grupo de ingreso
 
-Protocolos de evaluación:
-  aleatorio  partición aleatoria por filas (el protocolo de train.py)
-  por_pais   partición por país: ningún país aparece a la vez en entrenamiento y prueba
-  temporal   entrena 2000-2015, prueba 2016-2019
+Protocolos de evaluación: aleatorio, por país y temporal (ver expotb.train).
 
 Uso:
     python -m expotb.compare
@@ -23,31 +19,23 @@ import sys
 import numpy as np
 import pandas as pd
 from sklearn.base import clone
-from sklearn.model_selection import GroupKFold, GroupShuffleSplit, KFold, cross_validate, train_test_split
+from sklearn.model_selection import GroupKFold, GroupShuffleSplit, KFold, train_test_split
 
 from expotb import config
 from expotb.pipeline import build_models, clean
-from expotb.train import SCORING, metrics
+from expotb.train import cv_summary, metrics
 
 VARIANTS = {
-    "base": (config.FEATURE_SETS["base"], False),
-    "ampliado": (config.FEATURE_SETS["ampliado"], False),
-    "ampliado_ind": (config.FEATURE_SETS["ampliado"], True),
+    "base": (config.FEATURE_SETS["base"], "ingreso"),
+    "base_mediana": (config.FEATURE_SETS["base"], "mediana"),
+    "ampliado": (config.FEATURE_SETS["ampliado"], "ingreso"),
 }
-
-
-def _cv_summary(model, X, y, cv, groups=None) -> dict:
-    res = cross_validate(model, X, y, cv=cv, groups=groups, scoring=SCORING)
-    out = {}
-    for m in SCORING:
-        scores = res[f"test_{m}"] * (1 if m == "r2" else -1)
-        out[m] = {"media": float(scores.mean()), "std": float(scores.std())}
-    return out
 
 
 def main():
     df = clean(pd.read_csv(config.DATASET_PATH))
-    missing = [c for c in config.FEATURE_SETS["ampliado"] if c not in df.columns]
+    needed = config.FEATURE_SETS["ampliado"] + [config.INCOME_COL]
+    missing = [c for c in needed if c not in df.columns]
     if missing:
         sys.exit(f"Faltan columnas {missing}. Reconstruye el dataset: python -m expotb.data --tb data/raw/tuberculosis.csv")
     y, groups = df[config.TARGET], df["iso3"]
@@ -60,26 +48,24 @@ def main():
     te_t = idx[(df["year"] > config.TEMPORAL_SPLIT_YEAR).to_numpy()]
 
     results = {"n_registros": len(df), "n_paises": int(groups.nunique()),
-               "variantes": {k: {"variables": v[0], "indicadores_faltante": v[1]} for k, v in VARIANTS.items()},
+               "variantes": {k: {"variables": v[0], "imputacion": v[1]} for k, v in VARIANTS.items()},
                "resultados": {}}
 
-    for vname, (features, add_ind) in VARIANTS.items():
-        X = df[features]
+    for vname, (features, imputation) in VARIANTS.items():
+        # la imputación por mediana global no usa el grupo de ingreso (columna de texto)
+        X = df[features + ([config.INCOME_COL] if imputation == "ingreso" else [])]
         results["resultados"][vname] = {}
-        for mname, model in build_models(add_ind).items():
+        for mname, model in build_models(features, imputation).items():
             print(f"[{vname}] {config.MODEL_LABELS[mname]}...", flush=True)
             r = {}
-            # aleatorio
             kf = KFold(n_splits=5, shuffle=True, random_state=rs)
             fit = clone(model).fit(X.iloc[tr_a], y.iloc[tr_a])
-            r["aleatorio"] = {"cv": _cv_summary(clone(model), X.iloc[tr_a], y.iloc[tr_a], kf),
+            r["aleatorio"] = {"cv": cv_summary(clone(model), X.iloc[tr_a], y.iloc[tr_a], kf),
                               "prueba": metrics(y.iloc[te_a], fit.predict(X.iloc[te_a]))}
-            # por país
             gk = GroupKFold(n_splits=5)
             fit = clone(model).fit(X.iloc[tr_p], y.iloc[tr_p])
-            r["por_pais"] = {"cv": _cv_summary(clone(model), X.iloc[tr_p], y.iloc[tr_p], gk, groups.iloc[tr_p]),
+            r["por_pais"] = {"cv": cv_summary(clone(model), X.iloc[tr_p], y.iloc[tr_p], gk, groups.iloc[tr_p]),
                              "prueba": metrics(y.iloc[te_p], fit.predict(X.iloc[te_p]))}
-            # temporal
             fit = clone(model).fit(X.iloc[tr_t], y.iloc[tr_t])
             r["temporal"] = {"prueba": metrics(y.iloc[te_t], fit.predict(X.iloc[te_t]))}
             results["resultados"][vname][mname] = r

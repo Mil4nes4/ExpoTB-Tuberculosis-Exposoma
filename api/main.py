@@ -4,6 +4,7 @@ Ejecutar:  uvicorn api.main:app --reload
 """
 import json
 from contextlib import asynccontextmanager
+from typing import Literal
 
 import joblib
 import numpy as np
@@ -39,10 +40,13 @@ class Indicators(BaseModel):
     gdp_pc: float | None = Field(None, description="PIB per cápita (US$)", examples=[6000.0])
     hiv: float | None = Field(None, description="Prevalencia de VIH (%)", examples=[0.5])
     undernourishment: float | None = Field(None, description="Desnutrición (%)", examples=[8.0])
+    income: Literal["LIC", "LMC", "UMC", "HIC"] | None = Field(
+        None, description="Grupo de ingreso del Banco Mundial (opcional). Se usa para imputar indicadores "
+                          "faltantes; si no se indica, se imputa con la mediana global.", examples=["UMC"])
 
     def to_frame(self) -> pd.DataFrame:
         values = {k: (np.nan if v is None else v) for k, v in self.model_dump().items()}
-        return pd.DataFrame([values])[config.FEATURES]
+        return pd.DataFrame([values])[config.FEATURES + [config.INCOME_COL]]
 
 
 def _require_models():

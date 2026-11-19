@@ -108,7 +108,7 @@ pytest
 |---|---|---|
 | GET | `/health` | Estado y modelos cargados |
 | GET | `/models` | Lista de modelos (caja blanca, caja negra, ensamble) |
-| GET | `/metrics` | Métricas de validación cruzada, prueba y prueba temporal |
+| GET | `/metrics` | Métricas de validación cruzada, prueba, prueba por país y prueba temporal |
 | GET | `/dataset` | Dataset país-año procesado |
 | POST | `/predict` | Incidencia estimada por cada modelo |
 | POST | `/explain` | Contribución SHAP por indicador y por dimensión |
@@ -121,13 +121,15 @@ curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" \
   -d '{"pm25": 30, "clean_fuel": 60, "urban_pop": 50, "gdp_pc": 4000, "hiv": 1.0, "undernourishment": 10}'
 ```
 
+El campo opcional `income` (`LIC`, `LMC`, `UMC` o `HIC`) indica el grupo de ingreso del país y se usa para imputar indicadores faltantes; si se omite, se usa la mediana global.
+
 ## Metodología
 
-- Preprocesamiento: se eliminan los registros sin incidencia o con más de 2 indicadores faltantes. Luego se aplica imputación por mediana y estandarización dentro de un pipeline, para que no haya fuga de información. La incidencia se transforma con `log1p` y se devuelve a su escala con `expm1`.
+- Preprocesamiento: se eliminan los registros sin incidencia o con más de 2 indicadores faltantes. Luego se aplica, dentro de un pipeline y solo con datos de entrenamiento (sin fuga de información), la imputación por la mediana del grupo de ingreso del Banco Mundial (los faltantes de VIH y desnutrición se concentran en países de ingreso alto, donde la mediana global los sobrestima) y la estandarización. La incidencia se transforma con `log1p` y se devuelve a su escala con `expm1`.
 - Modelos de caja blanca: Ridge y Árbol de Decisión. Modelos de caja negra: Random Forest, XGBoost, Gradient Boosting y SVR. Ensamble por votación de RF, XGBoost y SVR.
-- Evaluación: validación cruzada K=5 sobre el 80 %, prueba sobre el 20 % y prueba temporal (entrenamiento 2000-2015, prueba 2016-2019). Métricas: MAE, RMSE y R².
+- Evaluación con tres protocolos. Aleatorio: validación cruzada K=5 sobre el 80 % y prueba sobre el 20 %. Por país: la partición separa países completos y la validación cruzada usa `GroupKFold` por código ISO3, de modo que mide la generalización a países no vistos. Temporal: entrenamiento 2000-2015 y prueba 2016-2019. Métricas: MAE, RMSE y R².
 - Explicabilidad: SHAP (TreeExplainer) por indicador y por dimensión del exposoma.
-- Comparación de conjuntos de variables (`expotb.compare`): el conjunto ampliado añade consumo de alcohol, saneamiento básico, gasto en salud y cobertura BCG. Se evalúa con los mismos registros y modelos bajo tres particiones: aleatoria, por país y temporal.
+- Comparación (`expotb.compare`): conjunto base con imputación por grupo de ingreso, conjunto base con mediana global y conjunto ampliado (añade consumo de alcohol, saneamiento básico, gasto en salud y cobertura BCG). Se evalúan con los mismos registros y modelos bajo los tres protocolos.
 - Reproducibilidad: `random_state = 42`.
 
 ## Futuras implementaciones
