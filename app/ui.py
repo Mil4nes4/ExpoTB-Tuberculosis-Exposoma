@@ -146,6 +146,23 @@ section[data-testid="stSidebar"] a:hover { padding-left: .9rem; }
   .xsteps { gap: .6rem 1.2rem; }
 }
 
+
+/* panel lateral: resumen del proyecto */
+.xside { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .2rem 0 .8rem; }
+.xside div { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14);
+  border-radius: var(--expo-radius); padding: .45rem .3rem; text-align: center; min-width: 0; }
+.xside b { display: block; font-family: var(--expo-serif); font-weight: 500; font-size: 1.15rem; color: #fff;
+  font-variant-numeric: tabular-nums; line-height: 1.1; }
+.xside span { display: block; font-size: .68rem; color: rgba(232,245,244,.75); letter-spacing: .02em; margin-top: .15rem; }
+section[data-testid="stSidebar"] [data-testid="stExpander"] { border-color: rgba(255,255,255,.16); }
+.xsteplist { margin: 0; padding-left: 1.1rem; font-size: .85rem; line-height: 1.45; }
+.xsteplist li { margin-bottom: .25rem; }
+
+/* pie de página */
+.xfoot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem 1.5rem; margin-top: 2.2rem;
+  padding-top: .9rem; border-top: 1px solid var(--expo-line); color: var(--expo-muted); font-size: .82rem; line-height: 1.45; }
+.xfoot b { color: var(--expo-text); font-weight: 700; }
+
 /* pantallas angostas */
 @media (max-width: 700px) {
   [data-testid="stMain"] [data-testid="stHorizontalBlock"] { flex-wrap: wrap; gap: var(--expo-gap); }
@@ -290,3 +307,18 @@ def style_fig(fig, height: int | None = None):
     if height:
         fig.update_layout(height=height)
     return fig
+
+
+def sidebar_summary(items: list):
+    """Resumen compacto para la barra lateral. items: lista de (valor, etiqueta)."""
+    cells = "".join(f"<div><b>{value}</b><span>{label}</span></div>" for value, label in items)
+    st.markdown(f'<div class="xside">{cells}</div>', unsafe_allow_html=True)
+
+
+def site_footer():
+    """Pie común con las fuentes de datos y el aviso de uso."""
+    st.markdown(
+        '<div class="xfoot"><span><b>Fuentes:</b> Organización Mundial de la Salud (Global Tuberculosis Report, '
+        'vía Our World in Data) y Banco Mundial (World Development Indicators), 2000–2019.</span>'
+        '<span>Prototipo académico. No es una herramienta clínica ni de diagnóstico.</span></div>',
+        unsafe_allow_html=True)

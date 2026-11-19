@@ -1,9 +1,9 @@
 """Interfaz de ExpoTB: punto de entrada y navegación.  Ejecutar:  streamlit run app/Inicio.py"""
 import streamlit as st
 
-from api_client import API_URL, api_ok
+from api_client import API_URL, api_ok, get_metrics
 from chatbot import render_chat
-from ui import inject_css
+from ui import inject_css, sidebar_summary, site_footer
 
 st.set_page_config(page_title="ExpoTB", page_icon=":material/pulmonology:", layout="wide",
                    initial_sidebar_state="auto")
@@ -34,6 +34,22 @@ with st.sidebar:
         st.success(f"API conectada en {API_URL}", icon=":material/check_circle:")
     else:
         st.error(f"API no disponible en {API_URL}", icon=":material/error:")
+    if api_ok():
+        m = get_metrics()
+        sidebar_summary([(f"{m['n_registros']:,}".replace(",", " "), "registros"),
+                         (str(m["n_paises"]), "países"), (str(len(m["modelos"])), "modelos")])
+    with st.expander("Fuentes de datos", icon=":material/database:"):
+        st.markdown("Incidencia de tuberculosis: Organización Mundial de la Salud, vía Our World in Data. "
+                    "Indicadores del exposoma y grupo de ingreso: Banco Mundial. Periodo 2000–2019.")
+    with st.expander("Cómo se estima", icon=":material/account_tree:"):
+        st.markdown(
+            '<ol class="xsteplist"><li>Se integran las dos fuentes por país y año.</li>'
+            "<li>Se imputan los faltantes con la mediana de su grupo de ingreso.</li>"
+            "<li>Se entrenan siete modelos y un ensamble.</li>"
+            "<li>Se evalúan con tres protocolos: aleatorio, por país y temporal.</li>"
+            "<li>Se explica cada estimación con SHAP.</li></ol>", unsafe_allow_html=True)
+    with st.expander("Para desarrolladores", icon=":material/api:"):
+        st.markdown(f"Documentación interactiva de la API: [{API_URL}/docs]({API_URL}/docs)")
     st.caption("Prototipo académico del curso de Inteligencia Artificial, FISI-UNMSM. "
                "No es una herramienta clínica.")
 
@@ -41,3 +57,5 @@ with st.sidebar:
 render_chat()
 
 nav.run()
+
+site_footer()
