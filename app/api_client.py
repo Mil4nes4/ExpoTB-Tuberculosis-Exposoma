@@ -5,7 +5,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
-API_URL = os.getenv("EXPOTB_API_URL", "http://localhost:8000")
+API_URL = os.getenv("EXPOTB_API_URL", "http://127.0.0.1:8000")
 
 
 def _get(path: str):
@@ -20,6 +20,7 @@ def _post(path: str, payload: dict):
     return r.json()
 
 
+@st.cache_data(ttl=5, show_spinner=False)
 def api_ok() -> bool:
     try:
         return bool(_get("/health")["modelos_cargados"])
