@@ -96,6 +96,17 @@ streamlit run app/Inicio.py
 
 Si la API corre en otra dirección, define `EXPOTB_API_URL` antes de iniciar Streamlit.
 
+### Asistente en Inicio
+
+Para habilitar **Pregúntale a ExpoTB**, configura `DEEPSEEK_API_KEY` como
+variable de entorno del proceso de Streamlit o en `.streamlit/secrets.toml`
+y reinícialo. Opcionalmente,
+`EXPOTB_CHAT_MODEL` permite cambiar el modelo de conversación (por defecto,
+`deepseek-flash`). Mantén la clave fuera del repositorio.
+
+El asistente envía los mensajes de la conversación a DeepSeek y utiliza
+la API de ExpoTB para calcular estimaciones históricas y escenarios.
+
 ### Pruebas
 
 ```bash
