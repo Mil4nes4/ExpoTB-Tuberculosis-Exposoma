@@ -62,7 +62,7 @@ with tab_all:
     order = tables["aleatorio"]["Modelo"].tolist()
     fig = px.bar(long, x="Modelo", y=metric, color="Evaluación", barmode="group",
                  category_orders={"Modelo": order},
-                 color_discrete_map={"Aleatorio": "#0F766E", "Por país": "#F97316",
+                 color_discrete_map={"Aleatorio": "#0F766E", "Por país": "#2563EB",
                                      "Temporal": "#0EA5E9", "Validación cruzada": "#64748B"})
     st.plotly_chart(style_fig(fig, 430), width="stretch")
     st.dataframe(overview.round(3), hide_index=True, width="stretch")
@@ -80,7 +80,7 @@ for tab, (proto, (label, question, desc)) in zip(tab_p, PROTOCOLS.items()):
         data = t.sort_values(metric, ascending=asc)
         fig = px.bar(data, x=metric, y="Modelo", color="Tipo", orientation="h",
                      color_discrete_map={"Caja blanca": "#0EA5E9", "Caja negra": "#0F766E",
-                                         "Ensamble": "#F97316"})
+                                         "Ensamble": "#2563EB"})
         fig.update_yaxes(categoryorder="array", categoryarray=data["Modelo"].tolist()[::-1])
         st.plotly_chart(style_fig(fig, 380), width="stretch")
         st.dataframe(t.round(3), hide_index=True, width="stretch", column_config={

@@ -65,14 +65,14 @@ with right:
         title=dict(text="casos por 100 000 hab. (ensamble)", font=dict(size=14)),
         gauge=dict(axis=dict(range=[0, top]), bar=dict(color="#0F766E", thickness=0.35),
                    bgcolor="#E6F2F1", borderwidth=0,
-                   threshold=dict(line=dict(color="#F97316", width=4), thickness=0.8, value=real)
+                   threshold=dict(line=dict(color="#2563EB", width=4), thickness=0.8, value=real)
                    if real is not None else None)))
     st.plotly_chart(style_fig(gauge, 260), width="stretch")
     if real is not None:
         diff = (ens or 0) - real
         st.metric(f"Incidencia real ({country}, {year})", f"{real:,.1f}",
                   delta=f"{diff:+,.1f} del modelo", delta_color="off")
-        st.caption("La línea naranja del medidor marca la incidencia real.")
+        st.caption("La línea azul del medidor marca la incidencia real.")
 
     ref = state.get("reference")
     b1, b2 = st.columns(2)
@@ -94,9 +94,9 @@ table = pd.DataFrame({
 }).sort_values("Incidencia estimada")
 fig = px.bar(table, x="Incidencia estimada", y="Modelo", color="Tipo", orientation="h",
              labels={"Incidencia estimada": "Casos por 100 000 hab."},
-             color_discrete_map={"Caja blanca": "#0EA5E9", "Caja negra": "#0F766E", "Ensamble": "#F97316"})
+             color_discrete_map={"Caja blanca": "#0EA5E9", "Caja negra": "#0F766E", "Ensamble": "#2563EB"})
 if real is not None:
-    fig.add_vline(x=real, line_dash="dash", line_color="#F97316", annotation_text="real")
+    fig.add_vline(x=real, line_dash="dash", line_color="#2563EB", annotation_text="real")
 st.plotly_chart(style_fig(fig, 340), width="stretch")
 note("Los modelos pueden discrepar bastante entre sí: un árbol de decisión es muy sensible a pequeños cambios "
      "en los indicadores, mientras que el ensamble promedia a varios modelos y es más estable.")

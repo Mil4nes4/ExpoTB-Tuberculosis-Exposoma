@@ -8,7 +8,7 @@ DIM_COLORS = {"Externa": "#0EA5E9", "Hogar": "#F59E0B", "Social": "#8B5CF6", "Bi
 DIM_ICONS = {"Externa": "air", "Hogar": "home", "Social": "groups", "Biológica": "biotech"}
 FEATURE_DIM = {f: dim for dim, feats in config.DIMENSIONS.items() for f in feats}
 PRIMARY = "#0F766E"
-ACCENT = "#F97316"
+ACCENT = "#2563EB"
 
 CSS = """
 <style>
@@ -21,8 +21,8 @@ CSS = """
   --expo-text: #0F2A2A;
   --expo-muted: #4B6A69;
   --expo-line: #D5E5E3;
-  --expo-orange: #E8822A;
-  --expo-orange-soft: #FFF3E6;
+  --expo-blue: #2F80C9;
+  --expo-blue-soft: #E8F2FC;
   --expo-panel: #FFFFFF;
   --expo-radius: .375rem;
   --expo-gap: .875rem;
@@ -52,7 +52,7 @@ CSS = """
 .xhero {
   background: linear-gradient(110deg, var(--expo-dark) 0%, var(--expo-accent) 100%);
   color: #fff; border-radius: var(--expo-radius); padding: 1.8rem 2rem; margin-bottom: 1.2rem;
-  border-bottom: 4px solid var(--expo-orange);
+  border-bottom: 4px solid var(--expo-blue);
 }
 .xhero .xtag { display: inline-block; background: rgba(255,255,255,.14); border-radius: var(--expo-radius);
   padding: .15rem .6rem; font-size: .78rem; margin-bottom: .6rem; letter-spacing: .04em; }
@@ -62,7 +62,7 @@ CSS = """
 .xhead { display: flex; align-items: center; gap: .8rem; padding-bottom: var(--expo-gap);
   border-bottom: 1px solid var(--expo-line); margin-bottom: .6rem; }
 .xhead .xico { width: 42px; height: 42px; border-radius: var(--expo-radius); display: grid; place-items: center;
-  background: var(--expo-orange); color: #fff; flex: none; }
+  background: var(--expo-blue); color: #fff; flex: none; }
 .xhead h1 { margin: 0; padding: 0; color: var(--expo-text); font-size: clamp(1.5rem, 3vw, 1.9rem);
   line-height: 1.15; font-weight: 650; letter-spacing: -.015em; overflow-wrap: anywhere; }
 .xhead p { margin: .15rem 0 0; color: var(--expo-muted); line-height: 1.45; max-width: 70ch; }
@@ -78,8 +78,8 @@ CSS = """
 .xcard, [data-testid="stMetric"] { background: var(--expo-panel); border: 1px solid var(--expo-line);
   border-radius: var(--expo-radius); padding: .75rem .875rem; min-width: 0; overflow-wrap: anywhere;
   transition: border-color .2s ease, transform .2s ease; }
-.xcard:hover, [data-testid="stMetric"]:hover { border-color: #F5AB62; transform: translateY(-1px); }
-.xcard.xtop { border-top: 3px solid var(--expo-orange); }
+.xcard:hover, [data-testid="stMetric"]:hover { border-color: #7DB4E6; transform: translateY(-1px); }
+.xcard.xtop { border-top: 3px solid var(--expo-blue); }
 .xcard .xlabel, .xcard .xsub, .xcard p { color: var(--expo-muted); font-size: .9rem; line-height: 1.4; }
 .xcard .xlabel { font-weight: 600; }
 .xcard .xvalue, [data-testid="stMetricValue"] { color: var(--expo-text); font-size: 1.75rem; font-weight: 650;
@@ -92,13 +92,13 @@ CSS = """
 [data-testid="stVerticalBlockBorderWrapper"] { border-color: var(--expo-line); border-radius: var(--expo-radius); }
 [data-testid="stMainBlockContainer"] h2 { font-size: 1.3rem; line-height: 1.25; font-weight: 650; padding: .65rem 0 .125rem; }
 
-.xnote { border-inline-start: 3px solid var(--expo-orange); background: var(--expo-orange-soft); border-radius: var(--expo-radius);
+.xnote { border-inline-start: 3px solid var(--expo-blue); background: var(--expo-blue-soft); border-radius: var(--expo-radius);
   padding: .75rem 1rem; color: var(--expo-text); font-size: .95rem; margin: .3rem 0 .8rem; }
-.xnote.warn { border-inline-start-color: var(--expo-accent); background: #FDE3C8; border-inline-start-color: #C25E10; }
+.xnote.warn { border-inline-start-color: var(--expo-accent); background: #D7E8FA; border-inline-start-color: #1D5FA8; }
 
 /* controles y transiciones */
 div[data-testid="stTabs"] button { transition: color .2s ease, background .2s ease; font-weight: 600; }
-div[data-testid="stTabs"] button:hover { background: rgba(232,130,42,.10); }
+div[data-testid="stTabs"] button:hover { background: rgba(47,128,201,.10); }
 .stButton button, .stDownloadButton button { border-radius: var(--expo-radius); box-shadow: none;
   transition: border-color .15s ease, background .15s ease, transform .15s ease; }
 .stButton button:hover, .stDownloadButton button:hover { transform: translateY(-1px); }
@@ -107,14 +107,14 @@ section[data-testid="stSidebar"] a:hover { padding-left: .9rem; }
 
 /* marca en la barra lateral */
 .xbrand { padding: .2rem 0 .8rem; }
-.xbrand b { font-size: 1.4rem; letter-spacing: -.3px; color: #fff; border-bottom: 3px solid var(--expo-orange); padding-bottom: 2px; }
+.xbrand b { font-size: 1.4rem; letter-spacing: -.3px; color: #fff; border-bottom: 3px solid var(--expo-blue); padding-bottom: 2px; }
 .xbrand span { display: block; font-size: .8rem; opacity: .75; margin-top: -2px; color: #fff; }
 
 
 /* banner de inicio: título grande, decoración de círculos concéntricos y pasos del flujo */
 .xbanner { position: relative; overflow: hidden; isolation: isolate; border-radius: var(--expo-radius);
   background: radial-gradient(120% 140% at 12% 20%, #14625D 0%, #0B3B3A 45%, #072423 100%);
-  border-bottom: 4px solid var(--expo-orange); color: #fff; margin-bottom: 1.4rem;
+  border-bottom: 4px solid var(--expo-blue); color: #fff; margin-bottom: 1.4rem;
   padding: clamp(1.6rem, 4vw, 2.8rem) clamp(1.2rem, 4vw, 3rem); min-height: 16rem;
   display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 1.6rem 2rem; }
 .xbanner:before, .xbanner:after { content: ""; position: absolute; border-radius: 50%; z-index: -1;

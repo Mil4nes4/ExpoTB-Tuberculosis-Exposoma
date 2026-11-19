@@ -28,9 +28,9 @@ VARIABLE_HELP = {
     "undernourishment": "Porcentaje de habitantes cuya ingesta habitual de alimentos es insuficiente.",
 }
 INCOME = {"LIC": "Bajo", "LMC": "Mediano bajo", "UMC": "Mediano alto", "HIC": "Alto"}
-LEVEL_COLORS = ("#FDEBD3", "#FAD0A0", "#F5AB62", "#E8822A", "#C25E10", "#7F3A06")
-# descenso en azul, aumento en naranja (de menor a mayor cambio)
-CHANGE_COLORS = ("#2F6F8F", "#79A9C2", "#C3DAE6", "#F7F4EE", "#F8CFA0", "#EE9A4D", "#B4540C")
+LEVEL_COLORS = ("#A9D2F0", "#6FB1E6", "#3F8FD6", "#2368B8", "#154587", "#0B2A63")
+# descenso en cian, aumento en índigo (de menor a mayor cambio)
+CHANGE_COLORS = ("#0E7490", "#67B7CF", "#C9E6EF", "#F5F7FA", "#C9C6F2", "#7F78D8", "#3B2FA0")
 MISSING_COLOR = "#D3DADF"
 WATER_COLOR = "#F0F5F7"
 
@@ -199,7 +199,7 @@ def view_map(data, registry, rows, year, years, region, unit, colors, highlight,
         locations=registry["iso3"].tolist(), locationmode="ISO-3",
         **map_payload(rows, year, unit, show_change, n - 1),
         zmin=-.5, zmax=n - .5, colorscale=scale, showscale=False,
-        marker_line_color=["#3B2412" if marked else "#FFFFFF" for marked in borders],
+        marker_line_color=["#0B1F3A" if marked else "#FFFFFF" for marked in borders],
         marker_line_width=[2.4 if marked else .55 for marked in borders],
         unselected_marker_opacity=1, selected_marker_opacity=1,
         hovertemplate="%{hovertext}<extra></extra>",
@@ -243,7 +243,7 @@ def view_map(data, registry, rows, year, years, region, unit, colors, highlight,
             sliders=[dict(
                 x=.02, len=.96, y=0, yanchor="top", active=years.index(year), pad=dict(t=34, b=0),
                 currentvalue=dict(prefix="Año en el mapa: ", xanchor="right", offset=4),
-                activebgcolor="#FBD9B5", bgcolor="#FFFFFF", bordercolor="#D5E5E3",
+                activebgcolor="#CFE3F7", bgcolor="#FFFFFF", bordercolor="#D5E5E3",
                 steps=[
                     dict(method="animate", label=str(y), value=str(y),
                          args=[[str(y)], dict(**timing, fromcurrent=False)])
@@ -426,7 +426,7 @@ with tab_map:
             bar = go.Figure(go.Bar(
                 x=top["shown"], y=top["country"], orientation="h",
                 marker=dict(color=[colors[int(i)] for i in top["class"]],
-                            line=dict(color="#3B2412", width=[2 if flag else 0 for flag in flags])),
+                            line=dict(color="#0B1F3A", width=[2 if flag else 0 for flag in flags])),
                 hovertext=[with_unit(v, map_unit, signed=show_change) for v in top["shown"]],
                 text=[number(v, signed=show_change) if mark or v == 0 else "" for v, mark in zip(top["shown"], flags)],
                 textposition="outside", cliponaxis=False,
