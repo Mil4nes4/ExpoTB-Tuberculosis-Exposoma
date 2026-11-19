@@ -8,7 +8,7 @@ from ui import quick_guide
 hero_banner(
     eyebrow="Exposoma y tuberculosis",
     title="Expo<em>TB</em>",
-    headline="De los factores del entorno a la incidencia de tuberculosis",
+    headline="Aprendizaje automático para estimar la incidencia de tuberculosis",
     lead="Se estima la incidencia anual de tuberculosis por país (casos nuevos por 100 000 habitantes) "
          "a partir de seis indicadores del exposoma y se explica su contribución a la estimación.",
     steps=[("travel_explore", "Explorar"), ("query_stats", "Estimar"), ("psychology", "Interpretar")],
