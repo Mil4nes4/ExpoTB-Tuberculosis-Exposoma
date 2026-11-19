@@ -6,22 +6,45 @@ import streamlit as st
 from api_client import get_dataset, predict, require_api
 from expotb import config
 from ui import DIM_COLORS, note, page_header, style_fig
+from ui import csv_download, module_route, quick_guide
 
 page_header("Predicción y escenarios",
             "Ajusta los indicadores del exposoma y observa la incidencia estimada por cada modelo.",
             "query_stats")
 require_api()
+module_route(2)
+quick_guide(
+    ("Precargar un país y un año o ajustar los seis indicadores.",
+     "Fijar una referencia antes de cambiar los valores para comparar escenarios.",
+     "Consultar la estimación por modelo y descargar la tabla."),
+    (("Incidencia estimada", "Casos nuevos estimados durante un año por cada 100 000 habitantes."),
+     ("Ensamble", "Modelo que combina las predicciones de varios modelos.")),
+)
 
 df = get_dataset()
 
 # opción de precargar los indicadores reales de un país y año
 with st.sidebar:
     st.markdown("#### Precargar un país")
-    country = st.selectbox("País", ["(ninguno)"] + sorted(df["country"].unique()))
+    explored = st.session_state.get("filtros_explorador", {})
+    if explored.get("country") in df["country"].values:
+        def use_explored_country():
+            st.session_state["prediccion_pais"] = explored["country"]
+            available = df.loc[df["country"].eq(explored["country"]), "year"]
+            st.session_state["prediccion_anio"] = (
+                explored["year"] if explored["year"] in available.values else int(available.max())
+            )
+
+        st.button("Usar país del Explorador", icon=":material/travel_explore:", on_click=use_explored_country,
+                  help="Carga el país y, si está disponible, el año consultado en el mapa.")
+    country = st.selectbox("País", ["(ninguno)"] + sorted(df["country"].unique()), key="prediccion_pais",
+                           help="Precarga los indicadores del país.",
+                           on_change=st.session_state.pop, args=("prediccion_anio", None))
     base = None
     if country != "(ninguno)":
         years = sorted(df.loc[df["country"] == country, "year"])
-        year = st.selectbox("Año", years, index=len(years) - 1)
+        year = st.selectbox("Año", years, index=None if "prediccion_anio" in st.session_state else len(years) - 1,
+                            key="prediccion_anio", help="Año de los indicadores que se cargarán.")
         base = df[(df["country"] == country) & (df["year"] == year)].iloc[0]
         st.caption("Los controles parten de los valores reales de ese país y año.")
 
@@ -48,7 +71,8 @@ with left:
         cols = st.columns(len(feats))
         for col, feat in zip(cols, feats):
             lo, hi, _ = config.FEATURE_RANGES[feat]
-            indicators[feat] = col.slider(config.FEATURE_LABELS[feat], lo, hi, key=f"in_{feat}")
+            indicators[feat] = col.slider(config.FEATURE_LABELS[feat], lo, hi, key=f"in_{feat}",
+                                          help=f"Indicador de la dimensión {dim}. Rango del control: {lo:g} a {hi:g}.")
 
 state["indicators"] = indicators  # se reutiliza en la página de explicabilidad
 
@@ -76,11 +100,13 @@ with right:
 
     ref = state.get("reference")
     b1, b2 = st.columns(2)
-    if b1.button("Fijar como referencia", icon=":material/push_pin:", width="stretch"):
+    if b1.button("Fijar como referencia", icon=":material/push_pin:", width="stretch",
+                 help="Guarda la estimación actual para compararla con futuros ajustes."):
         state["reference"] = ens
+        st.toast("Referencia fijada.", icon=":material/push_pin:")
         st.rerun()
     if ref is not None:
-        if b2.button("Quitar", icon=":material/close:", width="stretch"):
+        if b2.button("Quitar", icon=":material/close:", width="stretch", help="Quita la referencia guardada."):
             state.pop("reference")
             st.rerun()
         st.metric("Cambio frente a la referencia", f"{ens:,.1f}", delta=f"{ens - ref:+,.1f}",
@@ -100,5 +126,6 @@ if real is not None:
 st.plotly_chart(style_fig(fig, 340), width="stretch")
 note("Los modelos pueden discrepar bastante entre sí: un árbol de decisión es muy sensible a pequeños cambios "
      "en los indicadores, mientras que el ensamble promedia a varios modelos y es más estable.")
-with st.expander("Ver tabla"):
+with st.expander("Ver tabla", icon=":material/table:"):
     st.dataframe(table.round(2), hide_index=True, width="stretch")
+    csv_download(table, "expotb_estimaciones.csv")

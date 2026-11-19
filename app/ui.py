@@ -153,6 +153,25 @@ section[data-testid="stSidebar"] a:hover { padding-left: .9rem; }
   .xhero { padding: 1.3rem 1.2rem; }
 }
 @media (max-width: 380px) { .xgrid { grid-template-columns: 1fr; } }
+.xhead { position: relative; isolation: isolate; overflow: hidden; }
+.xhead::after {
+  content: ""; position: absolute; z-index: -1; inset-inline-end: -2rem; top: -4rem;
+  width: 9rem; height: 9rem; border-radius: 50%; pointer-events: none;
+  border: 1px solid var(--expo-line); outline: 1px solid var(--expo-line); outline-offset: .75rem;
+}
+.xnote { position: relative; isolation: isolate; overflow: hidden; }
+.xnote .xwatermark {
+  position: absolute; z-index: -1; inset-inline-end: -.3rem; bottom: -.9rem;
+  color: var(--expo-blue); opacity: .12; pointer-events: none;
+}
+.stApp :is(button, a, [role="slider"], [role="combobox"], summary):focus-visible {
+  outline: 2px solid #2563EB; outline-offset: 2px;
+}
+.st-key-ruta_modulo [data-testid="stPageLink"] a { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 700px) { .xhead::after { opacity: .5; } }
+@media (prefers-reduced-motion: reduce) {
+  [data-testid="stMainBlockContainer"] { animation: none; }
+}
 </style>
 """
 
@@ -214,7 +233,48 @@ def dim_card(name: str, indicators: str) -> str:
 
 
 def note(text: str, warn: bool = False):
-    st.markdown(f'<div class="xnote{" warn" if warn else ""}">{text}</div>', unsafe_allow_html=True)
+    icon = "info" if not warn else "warning"
+    st.markdown(f'<div class="xnote{" warn" if warn else ""}">{text}'
+                f'<span class="xwatermark" aria-hidden="true">{_icon(icon, 68)}</span></div>',
+                unsafe_allow_html=True)
+
+
+MODULES = (
+    ("0_Resumen.py", "Inicio", "home"),
+    ("1_Explorador_del_exposoma.py", "Explorar", "travel_explore"),
+    ("2_Prediccion_y_escenarios.py", "Estimar", "query_stats"),
+    ("3_Comparacion_de_modelos.py", "Comparar", "leaderboard"),
+    ("4_Explicabilidad.py", "Interpretar", "psychology"),
+)
+
+
+def module_route(current: int):
+    """Muestra el módulo actual y ofrece acceso al inicio y al paso siguiente."""
+    with st.container(key="ruta_modulo"):
+        columns = st.columns([1, 2, 2]) if current < len(MODULES) - 1 else st.columns([1, 2])
+        for col, index in zip(columns, (0, current, current + 1)):
+            file, label, icon = MODULES[index]
+            with col:
+                if index == current:
+                    st.caption(f":material/{icon}: Módulo {index} de 4 · {label}")
+                else:
+                    st.page_link(f"pages/{file}", label=label if index == 0 else f"Siguiente · {label}",
+                                 icon=f":material/{icon}:")
+
+
+def quick_guide(steps, terms, title="Cómo usar esta página"):
+    """Presenta instrucciones y definiciones en un bloque plegable."""
+    with st.expander(title, icon=":material/help:"):
+        st.markdown("\n".join(f"{i}. {step}" for i, step in enumerate(steps, 1)))
+        st.markdown("\n\n".join(f"**{term}**. {definition}" for term, definition in terms))
+
+
+def csv_download(data, filename, label="Descargar tabla (CSV)"):
+    """Ofrece la tabla en CSV y confirma la solicitud de descarga."""
+    st.download_button(label, data.to_csv(index=False).encode("utf-8-sig"), file_name=filename,
+                       mime="text/csv", icon=":material/download:", key=f"csv_{filename}",
+                       on_click=st.toast, args=("Descarga solicitada.",),
+                       kwargs={"icon": ":material/download:"})
 
 
 def style_fig(fig, height: int | None = None):

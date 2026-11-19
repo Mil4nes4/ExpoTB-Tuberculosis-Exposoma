@@ -5,11 +5,20 @@ import streamlit as st
 from api_client import get_metrics, require_api
 from expotb import config
 from ui import kpi_row, note, page_header, style_fig
+from ui import csv_download, module_route, quick_guide
 
 page_header("Comparación de modelos",
             "Métricas con tres protocolos de validación, cada uno responde a una pregunta distinta.",
             "leaderboard")
 require_api()
+module_route(3)
+quick_guide(
+    ("Elegir R², MAE o RMSE para comparar los modelos.",
+     "Consultar el protocolo que se ajuste al uso previsto y descargar su tabla."),
+    (("R²", "Mide cuánto mejora el modelo frente a predecir la media. Puede ser negativo."),
+     ("MAE y RMSE", "Miden el error en las unidades de la incidencia. RMSE da más peso a los errores grandes."),
+     ("Protocolo de validación", "Forma de separar los datos de entrenamiento y evaluación.")),
+)
 
 m = get_metrics()
 
@@ -53,7 +62,8 @@ tab_all, *tab_p = st.tabs([":material/compare_arrows: Visión general"] +
                           [f":material/science: {v[0]}" for v in PROTOCOLS.values()])
 
 with tab_all:
-    metric = st.radio("Métrica", ["R²", "MAE", "RMSE"], horizontal=True, key="metric_general")
+    metric = st.radio("Métrica", ["R²", "MAE", "RMSE"], horizontal=True, key="metric_general",
+                      help="Un R² más alto indica mejor ajuste. Para MAE y RMSE se prefieren valores menores.")
     evaluations = {label: tables[p].set_index("Modelo")[metric]
                    for p, (label, _, _) in PROTOCOLS.items()}
     evaluations["Validación cruzada"] = tables["aleatorio"].set_index("Modelo")[f"{metric} validación cruzada"]
@@ -66,6 +76,7 @@ with tab_all:
                                      "Temporal": "#0EA5E9", "Validación cruzada": "#64748B"})
     st.plotly_chart(style_fig(fig, 430), width="stretch")
     st.dataframe(overview.round(3), hide_index=True, width="stretch")
+    csv_download(overview, "expotb_comparacion.csv", "Descargar comparación (CSV)")
     note("<b>El R² aleatorio es optimista</b>: el modelo reconoce países que ya vio durante el entrenamiento. "
          "Al separar países completos, el desempeño baja de forma marcada. Esa cifra es la más realista para "
          "estimar la incidencia en un país nuevo.", warn=True)
@@ -75,7 +86,8 @@ for tab, (proto, (label, question, desc)) in zip(tab_p, PROTOCOLS.items()):
         st.markdown(f"**{question}**")
         note(desc)
         t = tables[proto]
-        metric = st.radio("Métrica", ["R²", "MAE", "RMSE"], horizontal=True, key=f"metric_{proto}")
+        metric = st.radio("Métrica", ["R²", "MAE", "RMSE"], horizontal=True, key=f"metric_{proto}",
+                          help="Cambia la métrica representada en el gráfico de este protocolo.")
         asc = metric != "R²"
         data = t.sort_values(metric, ascending=asc)
         fig = px.bar(data, x=metric, y="Modelo", color="Tipo", orientation="h",
@@ -86,3 +98,4 @@ for tab, (proto, (label, question, desc)) in zip(tab_p, PROTOCOLS.items()):
         st.dataframe(t.round(3), hide_index=True, width="stretch", column_config={
             "R²": st.column_config.ProgressColumn("R²", min_value=0.0, max_value=1.0, format="%.3f"),
         })
+        csv_download(t, f"expotb_validacion_{proto}.csv")

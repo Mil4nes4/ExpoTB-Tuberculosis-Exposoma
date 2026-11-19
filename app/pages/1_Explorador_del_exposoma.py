@@ -12,6 +12,7 @@ import streamlit as st
 from api_client import get_dataset, require_api
 from expotb import config
 from ui import PRIMARY, kpi_row, note, page_header, style_fig
+from ui import csv_download, module_route, quick_guide
 
 VARIABLES = {config.TARGET: "Incidencia de TB", **config.FEATURE_LABELS}
 UNITS = {
@@ -313,17 +314,30 @@ def country_profile(dataset, rows, code, variable, year, show_change):
 
 page_header("Explorador del exposoma", "Mapa mundial, ranking y evolución de cada indicador por país.", "public")
 require_api()
+module_route(1)
+quick_guide(
+    ("Elegir una dimensión y una variable.",
+     "Ajustar el año o la zona y seleccionar un país para abrir su ficha.",
+     "Usar Evolución para comparar series o Datos para descargar el conjunto completo."),
+    (("Exposoma", "Conjunto de exposiciones a lo largo de la vida."),
+     ("Incidencia", "Casos nuevos estimados por cada 100 000 habitantes durante un año.")),
+)
 
 df = get_dataset()
 variables = {**VARIABLES, config.TARGET: "Incidencia de TB (por 100 000 hab.)"}
 years = sorted(int(y) for y in df["year"].dropna().unique())
 dimensions = {"Tuberculosis": [config.TARGET], **config.DIMENSIONS}
+saved = st.session_state.get("filtros_explorador", {})
+saved_dimension = saved.get("dimension", "Tuberculosis")
 
 with st.container(border=True):
     c1, c2 = st.columns([1, 2])
-    dimension = c1.selectbox("Dimensión", list(dimensions), help="La incidencia de TB es el resultado estudiado. "
+    dimension = c1.selectbox("Dimensión", list(dimensions), index=list(dimensions).index(saved_dimension),
+                             key="explorador_dimension", help="La incidencia de TB es el resultado estudiado. "
                              "Los factores del exposoma se agrupan en cuatro dimensiones.")
     var = c2.selectbox("Variable", dimensions[dimension], format_func=variables.get,
+                       key=f"explorador_variable_{dimension}",
+                       index=dimensions[dimension].index(saved["variable"]) if saved.get("variable") in dimensions[dimension] else 0,
                        help="El mapa, el ranking y la pestaña Evolución usan la variable seleccionada.")
 
 tab_map, tab_line, tab_data = st.tabs([":material/map: Mapa y ranking", ":material/show_chart: Evolución",
@@ -337,15 +351,20 @@ with tab_map:
                        help="El cambio se mide respecto del primer dato disponible de cada país.")
     show_change = view != "Valor"
     map_unit = "puntos porcentuales" if show_change and unit == "%" else unit
-    year = b.select_slider("Año", years, value=years[-1], key=YEAR_KEY) if len(years) > 1 else years[0]
+    saved_year = saved.get("year")
+    year = b.select_slider("Año", years, value=saved_year if saved_year in years else years[-1], key=YEAR_KEY,
+                           help="Año de referencia del mapa, el ranking y la ficha.") if len(years) > 1 else years[0]
     if len(years) == 1:
         b.caption(f"Año disponible: {year}")
     registry = df[["iso3", "country"]].dropna().drop_duplicates("iso3").sort_values("country")
     names = registry.set_index("iso3")["country"].to_dict()
-    marked = c.selectbox("Resaltar país", list(names), index=None, format_func=names.get,
+    marked = c.selectbox("Resaltar país", list(names), key="explorador_resaltado", format_func=names.get,
+                         index=list(names).index(saved["marked"]) if saved.get("marked") in names else None,
                          placeholder="Buscar país", help="Se contornea en el mapa y se marca en el ranking regional.",
                          on_change=st.session_state.pop, args=(COUNTRY_KEY, None))
-    region = st.segmented_control("Zona", list(REGION_VIEWS), default="Mundo", selection_mode="single") or "Mundo"
+    region = st.segmented_control("Zona", list(REGION_VIEWS), default=saved.get("region", "Mundo"),
+                                  key="explorador_zona", selection_mode="single",
+                                  help="Acerca el mapa y limita el ranking a la zona elegida.") or "Mundo"
     animate = st.toggle("Habilitar reproducción", disabled=len(years) < 2,
                         help="Carga la serie temporal para reproducirla en el mapa.")
     if animate:
@@ -357,6 +376,10 @@ with tab_map:
     colors = (*(CHANGE_COLORS if show_change else LEVEL_COLORS), MISSING_COLOR)
     country = st.session_state.get(COUNTRY_KEY)
     highlight = marked or country
+    st.session_state["filtros_explorador"] = {
+        "dimension": dimension, "variable": var, "year": year, "region": region, "marked": marked,
+        "country": names.get(country or marked),
+    }
 
     with st.container(border=True, key="explorador_marco"):
         st.markdown(f"### {VARIABLES[var]} · {year}")
@@ -369,7 +392,8 @@ with tab_map:
                 key=MAP_KEY, on_select=select_map_country, selection_mode="points", theme=None,
                 height="stretch", width="stretch", config={
                     "displaylogo": False, "scrollZoom": True,
-                    "modeBarButtonsToRemove": ["select2d", "lasso2d", "toImage"],
+                    "modeBarButtonsToRemove": ["select2d", "lasso2d"],
+                    "toImageButtonOptions": {"filename": "expotb_mapa", "format": "png"},
                 },
             )
         chips = "".join(
@@ -385,7 +409,7 @@ with tab_map:
     with st.expander("Cómo leer este mapa", icon=":material/info:"):
         st.markdown(
             "Cada color representa un intervalo de la variable. En **Valor**, los tonos más oscuros indican "
-            "valores más altos. En **Cambio desde el primer año**, el marrón indica una reducción, el verde "
+            "valores más altos. En **Cambio desde el primer año**, el cian indica una reducción, el índigo "
             "un aumento y el tono claro del centro un cambio cercano a cero. El año de referencia es el "
             "primero con un dato disponible en cada país.\n\n"
             "Los intervalos interiores tienen el mismo ancho. Los extremos agrupan los valores de las colas. "
@@ -414,7 +438,8 @@ with tab_map:
     with rank_col.container(border=True):
         st.subheader(f"Ranking · {region}")
         st.caption(f"{year} · {view} · {map_unit}")
-        side = st.radio("Orden", ["Valores más altos", "Valores más bajos"], horizontal=True)
+        side = st.radio("Orden", ["Valores más altos", "Valores más bajos"], horizontal=True,
+                        help="Elige qué extremo de la distribución se muestra primero.")
         eligible = available if region == "Mundo" else available[available["iso3"].isin(REGION_ISO[region].split())]
         if eligible.empty:
             st.info("No hay valores disponibles en esta zona para el año seleccionado.", icon=":material/info:")
@@ -438,6 +463,9 @@ with tab_map:
                 yaxis=dict(automargin=True, tickfont=dict(size=12)),
             )
             st.plotly_chart(bar, width="stretch", theme=None, config={"displayModeBar": False})
+            csv_download(top.iloc[::-1][["country", "shown", "position"]].rename(columns={
+                "country": "País", "shown": f"Valor mostrado ({map_unit})", "position": "Posición mundial"
+            }), "expotb_ranking.csv", "Descargar ranking (CSV)")
             if highlight and highlight not in eligible["iso3"].values:
                 st.caption("El país resaltado queda fuera de este ranking.")
 
@@ -448,8 +476,10 @@ with tab_map:
 with tab_line:
     countries = sorted(df["country"].unique())
     default = [c for c in ("Peru", "India", "South Africa") if c in countries]
-    selected = st.multiselect("Países", countries, default=default, placeholder="Elige uno o más países")
-    show_median = st.checkbox("Mostrar la mediana mundial", value=True)
+    selected = st.multiselect("Países", countries, default=default, placeholder="Elige uno o más países",
+                              help="Se muestra una serie temporal por cada país seleccionado.")
+    show_median = st.checkbox("Mostrar la mediana mundial", value=True,
+                              help="Añade la mediana de los países con datos para cada año.")
     if selected:
         line = px.line(df[df["country"].isin(selected)], x="year", y=var, color="country", markers=True,
                        labels={var: variables[var], "year": "Año", "country": "País"})
@@ -464,4 +494,5 @@ with tab_line:
 with tab_data:
     st.dataframe(df, width="stretch", height=420)
     st.download_button("Descargar datos (CSV)", df.to_csv(index=False).encode("utf-8"),
-                       file_name="expotb_dataset.csv", mime="text/csv", icon=":material/download:")
+                       file_name="expotb_dataset.csv", mime="text/csv", icon=":material/download:",
+                       on_click=st.toast, args=("Descarga solicitada.",), kwargs={"icon": ":material/download:"})

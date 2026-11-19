@@ -4,6 +4,7 @@ from api_client import api_ok, get_metrics
 from chatbot import render_chat
 from expotb import config
 from ui import card_grid, dim_card, hero_banner, kpi_row, note
+from ui import quick_guide
 
 render_chat()
 
@@ -53,3 +54,12 @@ with right:
 note("Los resultados orientan la priorización de intervenciones, pero no sustituyen la vigilancia "
      "epidemiológica ni constituyen un diagnóstico. La incidencia estimada depende de la calidad de los datos "
      "de la OMS y del Banco Mundial.", warn=True)
+
+quick_guide(
+    ("Consultar el mapa y comparar países en el Explorador.",
+     "Ajustar los indicadores en Predicción y escenarios.",
+     "Revisar el desempeño de los modelos y consultar la contribución de cada factor."),
+    (("Exposoma", "Conjunto de exposiciones a lo largo de la vida. Aquí se aproxima con seis indicadores."),
+     ("Incidencia", "Casos nuevos estimados durante un año por cada 100 000 habitantes.")),
+    title="Guía rápida de ExpoTB",
+)
