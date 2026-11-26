@@ -26,6 +26,7 @@ WB_INDICATORS = {
     "undernourishment": "SN.ITK.DEFC.ZS", # prevalencia de desnutrición (%)
 }
 FEATURES = list(WB_INDICATORS)             # conjunto "base" (los 6 indicadores originales)
+SKEWED_FEATURES = ["pm25", "gdp_pc", "hiv", "undernourishment"]  # asimetría > 1,5: se les aplica log1p
 
 # Variables adicionales para el conjunto "ampliado" (se comparan en expotb.compare)
 WB_INDICATORS_EXTRA = {
