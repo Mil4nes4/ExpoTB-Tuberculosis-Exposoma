@@ -70,7 +70,7 @@ def main():
             r["temporal"] = {"prueba": metrics(y.iloc[te_t], fit.predict(X.iloc[te_t]))}
             results["resultados"][vname][mname] = r
         config.MODELS_DIR.mkdir(parents=True, exist_ok=True)
-        config.COMPARISON_PATH.write_text(json.dumps(results, indent=2, ensure_ascii=False))  # guarda avance
+        config.COMPARISON_PATH.write_text(json.dumps(results, indent=2), encoding="utf-8")  # guarda avance
 
     for proto in ("aleatorio", "por_pais", "temporal"):
         rows = {config.MODEL_LABELS[m]: {v: results["resultados"][v][m][proto]["prueba"]["r2"] for v in VARIANTS}
