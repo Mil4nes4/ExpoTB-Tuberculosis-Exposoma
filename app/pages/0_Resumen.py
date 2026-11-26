@@ -1,6 +1,6 @@
 import streamlit as st
 
-from api_client import api_ok, get_metrics
+from api_client import api_ok, ensemble_r2, get_metrics
 from expotb import config
 from ui import card_grid, dim_card, hero_banner, kpi_row, note
 from ui import quick_guide
@@ -14,8 +14,8 @@ hero_banner(
     steps=[("travel_explore", "Explorar"), ("query_stats", "Estimar"), ("psychology", "Interpretar")],
 )
 
-if api_ok():
-    m = get_metrics()
+m = get_metrics() if api_ok() else None
+if m:
     kpi_row([
         ("Registros país-año", f"{m['n_registros']:,}".replace(",", " "), "2000–2019"),
         ("Países", f"{m['n_paises']}", "con datos completos suficientes"),
@@ -23,8 +23,31 @@ if api_ok():
         ("Modelos", f"{len(m['modelos'])}", "caja blanca, negra y ensamble"),
     ])
 else:
-    st.info("Los indicadores del resumen se muestran cuando la API está disponible.",
+    st.info("Los indicadores del resumen se muestran cuando la API y las métricas están disponibles.",
             icon=":material/info:")
+
+# desempeño realista: el R² aleatorio se muestra siempre junto al de países no vistos
+r2_seen, r2_new = ensemble_r2(m)
+if r2_seen is not None:
+    st.markdown("## ¿Qué tan confiable es la estimación?")
+    ens_new = m["modelos"]["ensamble"]["por_pais"]["prueba"]
+    cards = [
+        ("R² con países ya vistos", f"{r2_seen:.2f}",
+         "partición aleatoria: optimista", "#94A3B8"),
+        ("R² en países nuevos", f"{r2_new:.2f}",
+         "países que el modelo no vio: cifra realista", "#2563EB"),
+        ("Error medio en países nuevos", f"{ens_new['mae']:,.0f}",
+         "casos por 100 000 hab. (MAE)", "#2563EB"),
+    ]
+    iv = m.get("intervalo")
+    if iv and iv.get("cobertura_por_pais") is not None:
+        cards.append((f"Rango plausible al {iv['nivel']:.0%}", f"{iv['cobertura_por_pais']:.0%}",
+                      "de los países no vistos cayó dentro", "#0F766E"))
+    kpi_row(cards)
+    note("Valores del ensamble. Si se mezclan países al azar, el modelo reconoce países que ya vio y el R² parece "
+         "muy alto; con países que nunca vio, el R² baja de forma marcada. Por eso ExpoTB sirve para "
+         "<b>orientar y comparar escenarios</b>, siempre con su rango de incertidumbre, y no para dar una cifra "
+         "exacta de un país.", warn=True)
 
 st.markdown("## Las cuatro dimensiones del exposoma")
 dims = {

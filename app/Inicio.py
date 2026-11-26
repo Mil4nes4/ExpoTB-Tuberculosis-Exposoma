@@ -34,10 +34,11 @@ with st.sidebar:
         st.success(f"API conectada en {API_URL}", icon=":material/check_circle:")
     else:
         st.error(f"API no disponible en {API_URL}", icon=":material/error:")
-    if api_ok():
-        m = get_metrics()
+    m = get_metrics() if api_ok() else None
+    if m:
         sidebar_summary([(f"{m['n_registros']:,}".replace(",", " "), "registros"),
                          (str(m["n_paises"]), "países"), (str(len(m["modelos"])), "modelos")])
+    tuned = bool(m and m.get("optimizacion", {}).get("activa"))
     with st.expander("Fuentes de datos", icon=":material/database:"):
         st.markdown("Incidencia de tuberculosis: Organización Mundial de la Salud, vía Our World in Data. "
                     "Indicadores del exposoma y grupo de ingreso: Banco Mundial. Periodo 2000–2019.")
@@ -45,7 +46,8 @@ with st.sidebar:
         st.markdown(
             '<ol class="xsteplist"><li>Se integran las dos fuentes por país y año.</li>'
             "<li>Se imputan los faltantes con la mediana de su grupo de ingreso.</li>"
-            "<li>Se entrenan siete modelos y un ensamble.</li>"
+            "<li>Se entrenan seis modelos y un ensamble"
+            + (", con hiperparámetros elegidos por búsqueda aleatoria" if tuned else "") + ".</li>"
             "<li>Se evalúan con tres protocolos: aleatorio, por país y temporal.</li>"
             "<li>Se explica cada estimación con SHAP.</li></ol>", unsafe_allow_html=True)
     with st.expander("Para desarrolladores", icon=":material/api:"):
