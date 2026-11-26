@@ -29,7 +29,7 @@ Arquitectura por capas con el frontend desacoplado del backend:
                             │ HTTP / JSON
 ┌───────────────────────────▼──────────────────────────────────┐
 │ Servicio       FastAPI + Uvicorn                              │
-│                /predict · /explain · /metrics · /dataset      │
+│                /predict · /predict/intervalo · /explain ...   │
 └───────────────────────────┬──────────────────────────────────┘
 ┌───────────────────────────▼──────────────────────────────────┐
 │ Modelos y      scikit-learn, XGBoost, SHAP                    │
@@ -54,7 +54,8 @@ expotb/
 │   ├── config.py             # rutas, variables y dimensiones
 │   ├── data.py               # adquisición e integración de datos
 │   ├── pipeline.py           # preprocesamiento y modelos
-│   ├── train.py              # validación cruzada, prueba y prueba temporal
+│   ├── train.py              # optimización de hiperparámetros, tres protocolos, líneas base e intervalo
+│   ├── tune.py               # búsqueda aleatoria de hiperparámetros y particiones temporales
 │   ├── compare.py            # comparación de conjuntos de variables (base vs. ampliado)
 │   └── explain.py            # valores SHAP
 ├── data/                     # raw/ y processed/ (no se suben a git)
@@ -81,8 +82,12 @@ python -m expotb.data
 #    o con el CSV de Kaggle/OWID descargado manualmente:
 python -m expotb.data --tb data/raw/tuberculosis.csv
 
-# 2. Entrenar y evaluar los modelos
-python -m expotb.train
+# 2. Entrenar y evaluar los modelos (con búsqueda aleatoria de hiperparámetros; es lento)
+python -m expotb.train --n-iter 15
+#    sin optimización (unos 5 minutos):
+python -m expotb.train --sin-ajuste
+#    reutilizando los hiperparámetros de models/metrics.json y reajustando solo algunos modelos:
+python -m expotb.train --reusar-params --reajustar ridge,arbol_decision --n-iter 60
 
 # 2b. (Opcional) Comparar el conjunto base de 6 indicadores con el ampliado de 10
 python -m expotb.compare
@@ -119,9 +124,10 @@ pytest
 |---|---|---|
 | GET | `/health` | Estado y modelos cargados |
 | GET | `/models` | Lista de modelos (caja blanca, caja negra, ensamble) |
-| GET | `/metrics` | Métricas de validación cruzada, prueba, prueba por país y prueba temporal |
+| GET | `/metrics` | Métricas de validación cruzada, prueba, prueba por país y prueba temporal, líneas base, hiperparámetros elegidos e intervalo |
 | GET | `/dataset` | Dataset país-año procesado |
 | POST | `/predict` | Incidencia estimada por cada modelo |
+| POST | `/predict/intervalo` | Estimación del ensamble con rango plausible del 80 % y su cobertura en países no vistos |
 | POST | `/explain` | Contribución SHAP por indicador y por dimensión |
 | GET | `/explain/global` | Importancia SHAP global |
 
@@ -136,9 +142,12 @@ El campo opcional `income` (`LIC`, `LMC`, `UMC` o `HIC`) indica el grupo de ingr
 
 ## Metodología
 
-- Preprocesamiento: se eliminan los registros sin incidencia o con más de 2 indicadores faltantes. Luego se aplica, dentro de un pipeline y solo con datos de entrenamiento (sin fuga de información), la imputación por la mediana del grupo de ingreso del Banco Mundial (los faltantes de VIH y desnutrición se concentran en países de ingreso alto, donde la mediana global los sobrestima) y la estandarización. La incidencia se transforma con `log1p` y se devuelve a su escala con `expm1`.
+- Preprocesamiento: se eliminan los registros sin incidencia o con más de 2 indicadores faltantes. Luego se aplica, dentro de un pipeline y solo con datos de entrenamiento (sin fuga de información), la imputación por la mediana del grupo de ingreso del Banco Mundial (los faltantes de VIH y desnutrición se concentran en países de ingreso alto, donde la mediana global los sobrestima) y la estandarización. La incidencia se transforma con `log1p` y se devuelve a su escala con `expm1`. Además, PM2.5, PIB per cápita, VIH y desnutrición (asimetría mayor a 1,5) se transforman con `log1p` antes de estandarizar (`LogSkew`); no tiene parámetros que aprender, así que no hay fuga de información.
+- Hiperparámetros: búsqueda aleatoria (`RandomizedSearchCV`) por modelo, con RMSE sobre `log1p(incidencia)` como criterio y solo con los datos de entrenamiento de cada protocolo (validación cruzada K=5 aleatoria, `GroupKFold` por país y ventanas temporales crecientes). Los modelos servidos usan los hiperparámetros del protocolo por país. Los valores elegidos quedan en `models/metrics.json`. Como se optimiza en escala logarítmica, Ridge y el Árbol muestran un R² bajo en escala original aunque su R² logarítmico es razonable.
+- Líneas base: mediana global y mediana por grupo de ingreso, evaluadas con los tres protocolos, para medir cuánto aporta el exposoma. También se reportan errores por nivel de incidencia y por grupo de ingreso.
+- Intervalo: cuantiles del 80 % de los residuales logarítmicos del ensamble fuera de muestra por país. La cobertura real en países no vistos (aprox. 72 %) queda por debajo del 80 % nominal y se reporta tal cual.
 - Modelos de caja blanca: Ridge y Árbol de Decisión. Modelos de caja negra: Random Forest, XGBoost, Gradient Boosting y SVR. Ensamble por votación de RF, XGBoost y SVR.
-- Evaluación con tres protocolos. Aleatorio: validación cruzada K=5 sobre el 80 % y prueba sobre el 20 %. Por país: la partición separa países completos y la validación cruzada usa `GroupKFold` por código ISO3, de modo que mide la generalización a países no vistos. Temporal: entrenamiento 2000-2015 y prueba 2016-2019. Métricas: MAE, RMSE y R².
+- Evaluación con tres protocolos. Aleatorio: validación cruzada K=5 sobre el 80 % y prueba sobre el 20 %. Por país: la partición separa países completos y la validación cruzada usa `GroupKFold` por código ISO3, de modo que mide la generalización a países no vistos. Temporal: entrenamiento 2000-2015 y prueba 2016-2019. El holdout temporal se repite en tres orígenes (entrena hasta 2007, 2011 y 2015 y prueba los 4 años siguientes). Métricas: MAE, RMSE y R², más RMSLE y R² en escala logarítmica, que no están dominadas por los países de incidencia muy alta.
 - Explicabilidad: SHAP (TreeExplainer) por indicador y por dimensión del exposoma.
 - Comparación (`expotb.compare`): conjunto base con imputación por grupo de ingreso, conjunto base con mediana global y conjunto ampliado (añade consumo de alcohol, saneamiento básico, gasto en salud y cobertura BCG). Se evalúan con los mismos registros y modelos bajo los tres protocolos.
 - Reproducibilidad: `random_state = 42`.
@@ -148,7 +157,8 @@ El campo opcional `income` (`LIC`, `LMC`, `UMC` o `HIC`) indica el grupo de ingr
 - [ ] **Migrar la interfaz de Streamlit a React** (por ejemplo, con Next.js) para tener una interfaz más personalizable y de nivel producción. Se reutiliza la misma API FastAPI.
 - [ ] Contenerizar la API y la interfaz con Docker y `docker-compose`.
 - [ ] Registrar los experimentos y versionar los modelos con MLflow.
-- [ ] Optimizar los hiperparámetros (Grid Search / búsqueda bayesiana).
+- [ ] Probar búsqueda bayesiana de hiperparámetros (la búsqueda aleatoria ya está implementada).
+- [ ] Añadir rezagos temporales y datos subnacionales.
 - [ ] Desplegar en la nube (Streamlit Community Cloud / Hugging Face Spaces / Render).
 - [ ] Agente que consuma la API para responder consultas en lenguaje natural (ejercicio de API).
 

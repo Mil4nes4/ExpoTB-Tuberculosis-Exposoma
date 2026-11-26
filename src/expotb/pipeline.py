@@ -53,17 +53,41 @@ class IncomeGroupImputer(BaseEstimator, TransformerMixin):
         return out.fillna(self.global_median_).to_numpy(dtype=float)
 
 
-def _pipe(regressor, features, imputation: str, add_indicator: bool) -> Pipeline:
-    # imputación y escalado dentro del pipeline: se ajustan solo con datos de entrenamiento (sin fuga)
+class LogSkew(BaseEstimator, TransformerMixin):
+    """Aplica log1p a los indicadores con asimetría positiva fuerte (PIB, VIH, PM2.5, desnutrición).
+
+    No tiene parámetros que aprender, así que no hay fuga de información. Los modelos de árboles son
+    invariantes a esta transformación; Ridge y SVR sí se benefician, porque dejan de estar dominados
+    por unos pocos países con valores extremos.
+    """
+
+    def __init__(self, features=None, skewed=config.SKEWED_FEATURES):
+        self.features = features
+        self.skewed = skewed
+
+    def fit(self, X, y=None):
+        names = list(self.features or config.FEATURES)
+        self.idx_ = [names.index(f) for f in self.skewed if f in names]
+        return self
+
+    def transform(self, X):
+        X = np.array(X, dtype=float, copy=True)
+        if self.idx_:
+            X[:, self.idx_] = np.log1p(np.clip(X[:, self.idx_], 0, None))
+        return X
+
+
+def _pipe(regressor, features, imputation: str, add_indicator: bool, log_skew: bool = True) -> Pipeline:
+    # imputación, transformación y escalado dentro del pipeline: se ajustan solo con datos de entrenamiento
     if imputation == "ingreso":
         imputer = IncomeGroupImputer(features=features)
     else:
         imputer = SimpleImputer(strategy="median", add_indicator=add_indicator)
-    return Pipeline([
-        ("imputer", imputer),
-        ("scaler", StandardScaler()),
-        ("model", regressor),
-    ])
+    steps = [("imputer", imputer)]
+    if log_skew:
+        steps.append(("logskew", LogSkew(features=features)))
+    steps += [("scaler", StandardScaler()), ("model", regressor)]
+    return Pipeline(steps)
 
 
 def _log_target(estimator) -> TransformedTargetRegressor:
@@ -72,27 +96,45 @@ def _log_target(estimator) -> TransformedTargetRegressor:
                                       inverse_func=np.expm1, check_inverse=False)
 
 
-def build_models(features=None, imputation: str = "ingreso", add_indicator: bool = False) -> dict:
-    """imputation: "ingreso" (mediana por grupo de ingreso) o "mediana" (mediana global)."""
+def make_regressors(params: dict | None = None) -> dict:
+    """Regresores base. `params` permite sobreescribir los hiperparámetros por modelo (salida de expotb.tune)."""
+    params = params or {}
+    return {
+        "ridge": Ridge(**params.get("ridge", {})),
+        "arbol_decision": DecisionTreeRegressor(random_state=RS, **params.get("arbol_decision", {})),
+        "random_forest": RandomForestRegressor(random_state=RS, n_jobs=-1, **params.get("random_forest", {})),
+        "xgboost": XGBRegressor(random_state=RS, n_jobs=-1, **params.get("xgboost", {})),
+        "gradient_boosting": GradientBoostingRegressor(random_state=RS, **params.get("gradient_boosting", {})),
+        "svr": SVR(**params.get("svr", {})),
+    }
+
+
+def build_models(features=None, imputation: str = "ingreso", add_indicator: bool = False,
+                 params: dict | None = None, log_skew: bool = True) -> dict:
+    """imputation: "ingreso" (mediana por grupo de ingreso) o "mediana" (mediana global).
+
+    params: hiperparámetros por modelo (si es None se usan los valores por defecto).
+    log_skew: aplica log1p a los indicadores asimétricos antes de escalar.
+    """
     features = list(features or config.FEATURES)
+    params = params or {}
 
     def pipe(reg):
-        return _pipe(reg, features, imputation, add_indicator)
+        return _pipe(reg, features, imputation, add_indicator, log_skew)
 
-    base = {
-        "ridge": Ridge(),
-        "arbol_decision": DecisionTreeRegressor(random_state=RS),
-        "random_forest": RandomForestRegressor(random_state=RS, n_jobs=-1),
-        "xgboost": XGBRegressor(random_state=RS, n_jobs=-1),
-        "gradient_boosting": GradientBoostingRegressor(random_state=RS),
-        "svr": SVR(),
-    }
-    models = {name: _log_target(pipe(reg)) for name, reg in base.items()}
+    models = {name: _log_target(pipe(reg)) for name, reg in make_regressors(params).items()}
     # el ensamble promedia en escala logarítmica las predicciones de RF, XGBoost y SVR
+    base = make_regressors(params)
     voting = VotingRegressor([
-        ("rf", pipe(RandomForestRegressor(random_state=RS, n_jobs=-1))),
-        ("xgb", pipe(XGBRegressor(random_state=RS, n_jobs=-1))),
-        ("svr", pipe(SVR())),
+        ("rf", pipe(base["random_forest"])),
+        ("xgb", pipe(base["xgboost"])),
+        ("svr", pipe(base["svr"])),
     ])
     models["ensamble"] = _log_target(voting)
     return models
+
+
+def inner_pipeline(name: str, features=None, imputation: str = "ingreso", params: dict | None = None) -> Pipeline:
+    """Pipeline sin la transformación del objetivo, para ajustar hiperparámetros sobre log1p(incidencia)."""
+    features = list(features or config.FEATURES)
+    return _pipe(make_regressors(params)[name], features, imputation, False, True)

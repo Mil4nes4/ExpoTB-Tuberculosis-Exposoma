@@ -31,3 +31,13 @@ def test_explain_por_dimension():
     with TestClient(app) as client:
         out = client.post("/explain", json=SAMPLE).json()
         assert set(out["dimensions"]) == set(config.DIMENSIONS)
+
+
+def test_predict_intervalo_contiene_la_estimacion():
+    with TestClient(app) as client:
+        resp = client.post("/predict/intervalo", json=SAMPLE)
+        if resp.status_code == 404:
+            pytest.skip("metrics.json sin intervalo: vuelve a entrenar")
+        out = resp.json()
+        assert 0 <= out["inferior"] <= out["ensamble"] <= out["superior"]
+        assert 0 < out["nivel"] < 1
